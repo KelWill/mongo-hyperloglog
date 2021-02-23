@@ -1,0 +1,3 @@
+tests/
+Makefile
+docker-compose.yml

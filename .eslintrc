@@ -1,0 +1,81 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./tsconfig.json",
+    "tsconfigRootDir": "."
+  },
+  "plugins": ["@typescript-eslint", "prettier", "security", "security-node"],
+  "env": {
+    "node": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended-requiring-type-checking",
+    "plugin:eslint-comments/recommended",
+    "plugin:regexp/recommended",
+    "prettier"
+  ],
+  "rules": {
+    "max-len": [
+      "error",
+      {
+        "code": 180,
+        "tabWidth": 4,
+        "ignoreUrls": true,
+        "ignoreStrings": true,
+        "ignoreTemplateLiterals": true,
+        "ignoreRegExpLiterals": true,
+        "ignoreComments": true
+      }
+    ],
+    "no-console": [
+      "error",
+      {
+        "allow": [
+          "flog",
+          "flaw",
+          "badData",
+          "enforceZero",
+          "sampleLogCustomInterval",
+          "plog",
+          "claw",
+          "clog",
+          "sampleLog",
+          "testTimeLog"
+        ]
+      }
+    ],
+    "prettier/prettier": 2,
+    "security/detect-object-injection": 0,
+    "no-extra-boolean-cast": 0,
+    "no-empty": [
+      "error",
+      {
+        "allowEmptyCatch": true
+      }
+    ],
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "args": "after-used",
+        "ignoreRestSiblings": true,
+        "argsIgnorePattern": "^_"
+      }
+    ],
+    "@typescript-eslint/no-explicit-any": 2,
+
+    // these rules are temporary to get eslint running again without failing
+    "@typescript-eslint/no-non-null-assertion": 0,
+    "@typescript-eslint/explicit-module-boundary-types": 0,
+    "@typescript-eslint/no-unsafe-assignment": 0,
+    "@typescript-eslint/unbound-method": 0,
+    "@typescript-eslint/no-unsafe-member-access": 0,
+    "@typescript-eslint/restrict-template-expressions": 0,
+    "@typescript-eslint/no-unsafe-call": 0,
+    "@typescript-eslint/require-await": 0,
+    "@typescript-eslint/no-floating-promises": 0 // knex fluent interfaces return promises (yuck)
+  }
+}
