@@ -22,13 +22,23 @@ lib: $(shell find src test -type f)
 	mkdir -p lib
 	node --max-old-space-size=4096 ./node_modules/.bin/tsc -p ./tsconfig.json
 
+mongo-connect: compose-up
+	docker exec -it mongologlog_mongo_1 mongo -u local_user -plocal_password
+
+wait-for-dependencies:
+	node -r ts-node/register/transpile-only ./test/wait-for-dependencies.ts
+
 compose-up:
 	docker-compose up -d
+	@make wait-for-dependencies
 
 compose-down:
 	docker-compose down
 
-test:
+test: compose-up
 	./node_modules/.bin/mocha test
 
-.PHONY: test
+fixtures:
+	node -r ts-node/register/transpile-only ./scripts/create_fixtures.ts
+
+.PHONY: test fixtures
