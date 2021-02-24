@@ -1,0 +1,7 @@
+- union [DONE]
+- intersection [DONE]
+- switch to query-ish format rather than string {key}
+- batched updates
+- add assertions for final state
+- 40k-ish bias fix: https://arxiv.org/pdf/1702.01284.pdf "New cardinality estimation algorithms for
+HyperLogLog sketches"

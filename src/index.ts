@@ -5,20 +5,30 @@ type Resolution = 4 | 6 | 8 | 10 | 12 | 14;
 
 type Options = {
   hash?: (s: string) => string;
+  syncInterval?: number;
+  maxBatchSize?: number;
   resolution?: Resolution;
 };
 
 type Register = string | null;
 
-export default class MongoHyperLogLog {
+export default class MongoHyperLogLogInternals {
   private collection: Collection<{ key: string; v: Register[] }>;
   private _hash?: (s: string) => string;
   // private resolution?: Resolution;
+  private maxBatchSize?: number;
 
   constructor(collection: Collection, options: Options = {}) {
     this.collection = collection;
     if (options.hash) this._hash = options.hash;
     // this.resolution = options.resolution || 14;
+    if (options.maxBatchSize) {
+      this.maxBatchSize = options.maxBatchSize;
+    }
+  }
+
+  async close() {
+    // await this.flush();
   }
 
   async add(key: string, value: string) {
@@ -43,16 +53,55 @@ export default class MongoHyperLogLog {
     }
   }
 
+  async countIntersection(keys: string[]) {
+    const docs = await this.collection.find({ key: { $in: keys } }).toArray();
+    if (!docs.length) return 0;
+    if (docs.length !== keys.length) return 0;
+
+    const unionCount = this.getUnionEstimateFromRegisters(
+      docs.map(({ v }) => v)
+    );
+
+    const docCounts = docs.map(({ v }) => this.getEstimateFromRegisters(v));
+
+    return Math.abs(unionCount - docCounts.reduce((sum, n) => sum + n, 0));
+  }
+
+  async countUnion(keys: string[]) {
+    const docs = await this.collection.find({ key: { $in: keys } }).toArray();
+    if (!docs.length) return 0;
+
+    return this.getUnionEstimateFromRegisters(docs.map(({ v }) => v));
+  }
+
   async count(key: string) {
     const doc = await this.collection.findOne({ key });
     if (!doc) return 0;
+    return this.getEstimateFromRegisters(doc.v);
+  }
 
-    const hyperloglogEstimate = this.getHyperLogLogEstimate(doc.v);
-    if (doc.v.some((n) => !n) && hyperloglogEstimate <= 3 * 16384) {
-      return this.getLinearCountEstimate(doc.v);
+  private getEstimateFromRegisters(values: Register[]) {
+    const hyperloglogEstimate = this.getHyperLogLogEstimate(values);
+    if (values.some((n) => !n) && hyperloglogEstimate <= 3 * 16384) {
+      return this.getLinearCountEstimate(values);
     }
 
     return hyperloglogEstimate;
+  }
+
+  private getUnionEstimateFromRegisters(registerList: Register[][]) {
+    const unionRegisters: Register[] = new Array(16384).fill(null);
+
+    for (let j = 0; j < registerList.length; j++) {
+      const registers = registerList[j];
+      for (let i = 0; i < unionRegisters.length; i++) {
+        if (fromChar(registers[i]) > fromChar(unionRegisters[i])) {
+          unionRegisters[i] = registers[i];
+        }
+      }
+    }
+
+    return this.getEstimateFromRegisters(unionRegisters);
   }
 
   private getBucket(hex: string) {
