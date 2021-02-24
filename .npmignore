@@ -1,4 +1,4 @@
-tests/
+test/
 Makefile
 docker-compose.yml
 fixtures/
