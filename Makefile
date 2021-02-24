@@ -21,6 +21,7 @@ lint-fix:
 lib: $(shell find src test -type f)
 	mkdir -p lib
 	node --max-old-space-size=4096 ./node_modules/.bin/tsc -p ./tsconfig.json
+	rm ./lib/tsconfig.tsbuildinfo
 
 mongo-connect: compose-up
 	docker exec -it mongologlog_mongo_1 mongo -u local_user -plocal_password

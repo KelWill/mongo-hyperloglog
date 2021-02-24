@@ -8,11 +8,12 @@ import * as path from "path";
 function testEstimate(estimate: number, trueCardinality: number) {
   console.log(`\testimate ${estimate} for ${trueCardinality}`);
 
+  const threeSD = Math.ceil((trueCardinality * 1.04) / Math.sqrt(16384));
   expect(estimate).toBeGreaterThanOrEqual(
-    trueCardinality - Math.ceil((trueCardinality * 1.06) / Math.sqrt(16384))
+    trueCardinality - threeSD
   );
   expect(estimate).toBeLessThanOrEqual(
-    trueCardinality + Math.ceil((trueCardinality * 1.06) / Math.sqrt(16384))
+    trueCardinality + threeSD
   );
 }
 
@@ -51,7 +52,7 @@ describe("MongoHyperLogLog", () => {
       expect(await hyperloglog.count(key)).toBe(1);
     });
 
-    it.only("respsects 'immediateFlush'", async () => {
+    it("respsects 'immediateFlush'", async () => {
       const hyperloglog = new MongoHyperLogLog(collection, {
         immediateFlush: true,
       });
