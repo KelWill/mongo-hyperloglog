@@ -6,15 +6,13 @@ import * as fs from "fs";
 import * as path from "path";
 
 function testEstimate(estimate: number, trueCardinality: number) {
-  if (process.env.DEBUG) {
-    console.log(`\testimate ${estimate} for ${trueCardinality}`);
-  }
+  console.log(`\testimate ${estimate} for ${trueCardinality}`);
 
-  expect(estimate).toBeGreaterThan(
-    trueCardinality - (trueCardinality * 1.06) / Math.sqrt(16384)
+  expect(estimate).toBeGreaterThanOrEqual(
+    trueCardinality - Math.ceil((trueCardinality * 1.06) / Math.sqrt(16384))
   );
-  expect(estimate).toBeLessThan(
-    trueCardinality + (trueCardinality * 1.06) / Math.sqrt(16384)
+  expect(estimate).toBeLessThanOrEqual(
+    trueCardinality + Math.ceil((trueCardinality * 1.06) / Math.sqrt(16384))
   );
 }
 
@@ -53,10 +51,23 @@ describe("MongoHyperLogLog", () => {
       expect(await hyperloglog.count(key)).toBe(1);
     });
 
+    it.only("respsects 'immediateFlush'", async () => {
+      const hyperloglog = new MongoHyperLogLog(collection, {
+        immediateFlush: true,
+      });
+
+      for (let i = 0; i < 100; i++) {
+        await hyperloglog.add("key", `${i}`);
+      }
+
+      testEstimate(await hyperloglog.count("key"), 100);
+
+    });
+
     for (let n = 5; n <= 5_000_000; n *= 10) {
       it(`returns estimate within expected error range for ${n.toLocaleString()}`, async () => {
         const hyperloglog = new MongoHyperLogLog(collection, {
-          syncInterval: 500,
+          syncIntervalMS: 500,
         });
 
         for (let i = 0; i < n; i++) {

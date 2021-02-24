@@ -2,13 +2,10 @@ import { Collection } from "mongodb";
 import * as crypto from "crypto";
 import * as EventEmitter from "events";
 
-// type Resolution = 4 | 6 | 8 | 10 | 12 | 14;
-
 type Options = {
   hash?: (s: string) => string;
   syncIntervalMS?: number;
-  maxBatchSize?: number;
-  syncInternal?: number;
+  immediateFlush?: boolean;
 };
 
 type Register = string | null;
@@ -21,32 +18,32 @@ export default class MongoHyperLogLog extends EventEmitter {
   private syncIntervalMS: number;
   private queuedUpdates: QueuedUpdate[];
 
-  private maxBatchSize?: number;
   private timeoutRef?: ReturnType<typeof setTimeout>;
-  private lastUpdated?: number;
+  private immediateFlush?: boolean;
 
   constructor(collection: Collection, options: Options = {}) {
     super();
     this.collection = collection;
     if (options.hash) this._hash = options.hash;
-    if (options.maxBatchSize) {
-      if (options.maxBatchSize < 1)
-        throw new Error(
-          `maxBatchSize must be positive: ${options.maxBatchSize}`
-        );
-      this.maxBatchSize = options.maxBatchSize;
-    }
-    this.syncIntervalMS = options.syncInternal || 1_000;
 
+    this.syncIntervalMS = options.syncIntervalMS || 1_000;
+    this.immediateFlush = !!options.immediateFlush;
     this.queuedUpdates = [];
-    this.startUpdateLoop();
+    if (!this.immediateFlush) {
+      this.startUpdateLoop();
+    }
   }
 
   startUpdateLoop() {
-    this.lastUpdated = Date.now();
     this.timeoutRef = setTimeout(() => {
       this.flush().then(() => this.startUpdateLoop());
     }, this.syncIntervalMS);
+  }
+
+  async close () {
+    if (this.timeoutRef) clearTimeout(this.timeoutRef);
+    await this.flush();
+    this.removeAllListeners();
   }
 
   async flush() {
@@ -72,7 +69,7 @@ export default class MongoHyperLogLog extends EventEmitter {
     }
   }
 
-  add(key: string, value: string) {
+  async add(key: string, value: string) {
     const hex = this.hash(value);
 
     const bucket = this.getBucket(hex);
@@ -98,6 +95,8 @@ export default class MongoHyperLogLog extends EventEmitter {
       };
       this.queuedUpdates.push({ key, update });
     }
+
+    if (this.immediateFlush) await this.flush();
   }
 
   async countIntersection(keys: string[]) {

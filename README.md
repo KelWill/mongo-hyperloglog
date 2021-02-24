@@ -28,6 +28,32 @@ async function getCounts () {
 }
 ```
 
+#### Options
+
+```typescript
+const hll = new MonogHyperLogLog(collection, {
+  immediateFlush: false,
+  // should this immediately send all updates to mongodb? queueing is the default
+
+  syncIntervalMS: 5000, 
+  // how often this flushes the queued updates to mongodb. ignored if immediateFlush is set to `true`
+
+  hash: (s: string) => myCustomHashingFunction(s),
+  // mongologlog uses sha256 for hashing, but you're welcome to provide your own hash function
+});
+```
+
+#### Methods
+
+```typescript
+add(key: string, value: string): Promise<void>; // queues value to add to sketch for key
+count(key: string): Promise<number>; // estimated count for key
+countUnion(keys: string[]): Promise<number>; // estimated count for union of keys
+countIntersection(keys: string[]): Promise<number>; // estimated count for intersection of keys
+
+close (): Promise<void> // flushes data & removes listeners
+```
+
 ## Details & Caveats
 
 **If you need a hyperloglog counter & can use redis's hyperloglog implementation instead, you should**. The redis implementation is much faster because it's supported natively by redis (and because redis is simply much faster than mongo), and uses hyperloglog++ optimizations for sparse data sets & forumalae from _New cardinality estimation algorithms for
