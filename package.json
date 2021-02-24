@@ -1,11 +1,12 @@
 {
   "name": "mongo-hyperloglog",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "hyperloglog support for mongo (16kb per counter)",
   "main": "lib/index.js",
   "files": ["lib"],
   "scripts": {
-    "test": "make test"
+    "test": "make test",
+    "prepublish": "make lib"
   },
   "keywords": [
     "mongo",
