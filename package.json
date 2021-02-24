@@ -15,6 +15,10 @@
     "cardinality"
   ],
   "author": "Will Keleher",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/kelwill/mongo-hyperloglog.git"
+  },
   "license": "ISC",
   "devDependencies": {
     "@types/lodash": "^4.14.168",
