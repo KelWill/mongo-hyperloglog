@@ -1,55 +1,102 @@
 import { Collection } from "mongodb";
 import * as crypto from "crypto";
+import * as EventEmitter from "events";
 
-type Resolution = 4 | 6 | 8 | 10 | 12 | 14;
+// type Resolution = 4 | 6 | 8 | 10 | 12 | 14;
 
 type Options = {
   hash?: (s: string) => string;
-  syncInterval?: number;
+  syncIntervalMS?: number;
   maxBatchSize?: number;
-  resolution?: Resolution;
+  syncInternal?: number;
 };
 
 type Register = string | null;
 
-export default class MongoHyperLogLogInternals {
+type QueuedUpdate = { key: string; update: { $max: Record<string, string> } };
+
+export default class MongoHyperLogLog extends EventEmitter {
   private collection: Collection<{ key: string; v: Register[] }>;
   private _hash?: (s: string) => string;
-  // private resolution?: Resolution;
+  private syncIntervalMS: number;
+  private queuedUpdates: QueuedUpdate[];
+
   private maxBatchSize?: number;
+  private timeoutRef?: ReturnType<typeof setTimeout>;
+  private lastUpdated?: number;
 
   constructor(collection: Collection, options: Options = {}) {
+    super();
     this.collection = collection;
     if (options.hash) this._hash = options.hash;
-    // this.resolution = options.resolution || 14;
     if (options.maxBatchSize) {
+      if (options.maxBatchSize < 1)
+        throw new Error(
+          `maxBatchSize must be positive: ${options.maxBatchSize}`
+        );
       this.maxBatchSize = options.maxBatchSize;
     }
+    this.syncIntervalMS = options.syncInternal || 1_000;
+
+    this.queuedUpdates = [];
+    this.startUpdateLoop();
   }
 
-  async close() {
-    // await this.flush();
+  startUpdateLoop() {
+    this.lastUpdated = Date.now();
+    this.timeoutRef = setTimeout(() => {
+      this.flush().then(() => this.startUpdateLoop());
+    }, this.syncIntervalMS);
   }
 
-  async add(key: string, value: string) {
-    const hex = this.hash(value);
+  async flush() {
+    const updates = this.queuedUpdates;
+    this.queuedUpdates = [];
+    await Promise.all(updates.map((update) => this.doUpdate(update)));
+  }
 
-    const bucket = this.getBucket(hex);
-    const unlikeliness = this.getLeading0Count(hex);
-    const update = {
-      $max: {
-        [`v.${bucket}`]: toChar(unlikeliness),
-      },
-    };
-
-    const writeOpResult = await this.collection.updateOne({ key }, update);
-    if (!writeOpResult.modifiedCount) {
+  private async doUpdate(queuedUpdate: QueuedUpdate) {
+    const { key, update } = queuedUpdate;
+    try {
+      const writeOpResult = await this.collection.updateOne({ key }, update);
+      if (writeOpResult.modifiedCount) return;
       await this.collection.updateOne(
         { key },
         { $setOnInsert: { v: new Array(16384).fill(null) } },
         { upsert: true }
       );
       await this.collection.updateOne({ key }, update);
+    } catch (err) {
+      if (process.env.DEBUG) console.error("ERROR in doUpdate", err);
+      this.emit("error", err);
+    }
+  }
+
+  add(key: string, value: string) {
+    const hex = this.hash(value);
+
+    const bucket = this.getBucket(hex);
+    const unlikeliness = this.getLeading0Count(hex);
+
+    const existingUpdate = this.queuedUpdates.find(
+      (update) => update.key === key
+    );
+
+    if (existingUpdate) {
+      const maxes = existingUpdate.update.$max;
+      const bucketKey = `v.${bucket}`;
+
+      maxes[bucketKey] =
+        fromChar(toChar(unlikeliness)) > fromChar(maxes[bucketKey])
+          ? toChar(unlikeliness)
+          : maxes[bucketKey];
+    } else {
+      const update = {
+        $max: {
+          [`v.${bucket}`]: toChar(unlikeliness),
+        },
+      };
+      this.queuedUpdates.push({ key, update });
     }
   }
 

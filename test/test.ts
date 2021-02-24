@@ -36,6 +36,7 @@ describe("MongoHyperLogLog", () => {
   describe("count", () => {
     it("returns 0 when nothing has been counted", async () => {
       const hyperloglog = new MongoHyperLogLog(collection);
+      await hyperloglog.flush();
       const count = await hyperloglog.count(`${Math.random()}`);
       expect(count).toBe(0);
     });
@@ -48,34 +49,24 @@ describe("MongoHyperLogLog", () => {
         await hyperloglog.add(key, "hello!");
       }
 
+      await hyperloglog.flush();
       expect(await hyperloglog.count(key)).toBe(1);
     });
 
-    for (let n = 5; n <= 500_000; n *= 10) {
-      xit(`returns estimate within expected error range for ${n}`, async () => {
-        const key = `${n}:${new Date().toISOString()}`;
-        const hyperloglog = new MongoHyperLogLog(collection);
+    for (let n = 5; n <= 5_000_000; n *= 10) {
+      it(`returns estimate within expected error range for ${n.toLocaleString()}`, async () => {
+        const hyperloglog = new MongoHyperLogLog(collection, {
+          syncInterval: 500,
+        });
 
-        let p: Promise<void>[] = [];
         for (let i = 0; i < n; i++) {
-          p.push(hyperloglog.add(key, `${i}${Math.random()}`));
-
-          if (p.length >= 100) {
-            await Promise.all(p);
-            p = [];
-          }
+          hyperloglog.add("key", `${i}${Math.random()}`);
         }
-        await Promise.all(p);
 
-        const estimatedCount = await hyperloglog.count(key);
+        await hyperloglog.flush();
 
-        console.log(`\t\testimated ${estimatedCount} for ${n}`);
-        // 1.04 / Math.sqrt(register_count) is the expected error
-        // so we bump that up a bit to avoid false positives
-        expect(estimatedCount).toBeGreaterThan(
-          n - (n * 1.06) / Math.sqrt(16384)
-        );
-        expect(estimatedCount).toBeLessThan(n + (n * 1.06) / Math.sqrt(16384));
+        const estimatedCount = await hyperloglog.count("key");
+        testEstimate(estimatedCount, n);
       });
     }
   });
@@ -113,6 +104,7 @@ describe("MongoHyperLogLog", () => {
   describe("countUnion", () => {
     it("returns 0 when it can't find documents", async () => {
       const hyperloglog = new MongoHyperLogLog(collection);
+      await hyperloglog.flush();
       const estimate = await hyperloglog.countUnion(["not", "there"]);
       expect(estimate).toBe(0);
     });
@@ -123,6 +115,7 @@ describe("MongoHyperLogLog", () => {
         if (i > 250 && i < 1000) await hyperloglog.add("key1", `${i}`);
         if (i < 500) await hyperloglog.add("key2", `${i}`);
       }
+      await hyperloglog.flush();
       const estimate = await hyperloglog.countUnion(["key1", "key2"]);
       testEstimate(estimate, 1000);
     });
@@ -135,6 +128,7 @@ describe("MongoHyperLogLog", () => {
         await hyperloglog.add("key3", `${i}`);
       }
 
+      await hyperloglog.flush();
       const estimate = await hyperloglog.countUnion([
         "key1",
         "key2",
@@ -158,6 +152,7 @@ describe("MongoHyperLogLog", () => {
         await hyperloglog.add(`key${i % 3}`, `${i}`);
       }
 
+      await hyperloglog.flush();
       const estimate = await hyperloglog.countIntersection(["key1", "key2"]);
       expect(estimate).toBeLessThan(4);
       expect(estimate).toBeGreaterThanOrEqual(0);
@@ -169,7 +164,7 @@ describe("MongoHyperLogLog", () => {
         await hyperloglog.add(`key1`, `${i}`);
         await hyperloglog.add(`key2`, `${i}`);
       }
-
+      await hyperloglog.flush();
       const estimate = await hyperloglog.countIntersection([
         "key1",
         "key2",
@@ -184,6 +179,7 @@ describe("MongoHyperLogLog", () => {
         if (i > 250 && i < 1000) await hyperloglog.add("key1", `${i}`);
         if (i < 500) await hyperloglog.add("key2", `${i}`);
       }
+      await hyperloglog.flush();
       const estimate = await hyperloglog.countIntersection(["key1", "key2"]);
       testEstimate(estimate, 250);
     });
