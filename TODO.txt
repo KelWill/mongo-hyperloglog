@@ -4,5 +4,7 @@
 - error handling for batched updates [DONE]
 - closing [DONE]
 - switch to query-ish format rather than string {key} ?
+- switch to murmurhash
+- allow resolution configuration?
 - 40k-ish bias fix: https://arxiv.org/pdf/1702.01284.pdf "New cardinality estimation algorithms for
 HyperLogLog sketches"
