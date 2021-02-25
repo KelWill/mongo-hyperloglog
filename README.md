@@ -63,7 +63,7 @@ HyperLogLog sketches_ for increased accuracy.
 - this does not include hyperloglog++ bias correction when switching from linear counting to hyperloglog or other estimation algorithm improvements
 - WiredTiger's snapshotting model is well suited to this type of counting, but it's still not as fast as it would be if these counting operations were natively supported
 - by default, a `MongoHyperLogLog` will send updates to mongo every 1000ms (configurable by `syncIntervalMS`). To flush manually before exiting: `await hyperloglog.close()`.
-- Mongo HyperLogLog registers store the characters as characters to represent estimates between 0-31, which makes each register use 1 byte of memory.
+- Mongo HyperLogLog registers store single characters to represent estimates between 0-31, which makes each register use 1 byte of memory.
 
 ## Further reading
 
