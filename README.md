@@ -1,6 +1,6 @@
 # Mongo HyperLogLog
 
-A 32 bit implementation of the [hyperloglog](https://en.wikipedia.org/wiki/HyperLogLog) algorithm using a MongoDB collection for storage. Each counted `key` will take 1.6kb of memory, and will be accurate within ~1% up to cardinalities of 2^27.
+A 32 bit implementation of the [hyperloglog](https://en.wikipedia.org/wiki/HyperLogLog) algorithm using a MongoDB collection for storage. Each counted `key` will take 16kb of memory, and will be accurate within ~1% up to cardinalities of 2^27.
 
 ## Basic Usage
 
