@@ -1,5 +1,7 @@
 # Mongo HyperLogLog
 
+Mongo version 4.4 is **much slower** than previous Mongo versions at updating the same in-memory document. On that version of Mongo, you should expect this library to cause ~5-10x as much load as it used to. I'm unsure whether subsequent versions of Mongo improve things, but I **strongly recommend using the redis hyperloglog** if that's an option.
+
 A 32 bit implementation of the [hyperloglog](https://en.wikipedia.org/wiki/HyperLogLog) algorithm using a MongoDB collection for storage. Each counted `key` will take 16kb of memory, and will be accurate with minimal error up to cardinalities of 2^27.
 
 ## Basic Usage
